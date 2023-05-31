@@ -1,0 +1,647 @@
+#####PLEASE READ THE COMMENTS BEFORE COPY-PASTING THE SCRIPTS#####
+
+##BAYENV###
+##manual and instructions in https://bitbucket.org/tguenther/bayenv2_public/src/master/#####
+##Be sure to have files for $1-$6 for the specific
+export PATH=$PATH:/data/home/btw722/bayenv2
+SNPFILE=$1
+ENVFILE=$2
+MATFILE=$3
+ITNUM=$5
+POPNUM=$4
+ENVNUM=$6
+
+split -a 10 -l 2 $SNPFILE snp_batch
+
+for f in $(ls snp*_?*)
+do
+bayenv2 -i $f -e $ENVFILE -m $MATFILE -k $ITNUM -r $RANDOM -p $POPNUM -n $ENVNUM -t -c
+done
+rm -f snp*_?*
+
+#part of the package##
+./calc_bfs.sh filtered.txt env_pparva.txt filt_mat 8 50000 50
+
+####LEA latent factor mixed models for population genomics and environmental associations###
+#### I ran environmental variables one by one to explore results immediately - lfmm function does takes time###
+#### Feel free to loop it through####
+####https://bioconductor.org/packages/release/bioc/html/LEA.html####
+library(LEA)
+#####load file and transform into geno#######
+struct2geno("stru_new", ploidy = 2, FORMAT = 2, extra.row = 0, extra.col = 2)
+##run structure-like stuff####
+obj.snmf2 = snmf("stru_new.geno", K = 1:2, entropy = T, ploidy = 2, project="new")
+plot(obj.snmf2)
+barplot(t(Q(obj.snmf2, K = 2)), col = 3:2)
+##env1_discharge####
+obj.lfmm = lfmm("stru_new.lfmm", "disch.env", K = 8, rep = 5, project="new")
+zs = z.scores(obj.lfmm, K = 8)
+zs.median = apply(zs, MARGIN = 1, median)
+lambda = median(zs.median^2)/qchisq(0.5, df = 1)
+adj.p.values = pchisq(zs.median^2/lambda, df = 1, lower = FALSE)
+hist(adj.p.values, col = "red")
+L = 30910
+q = 0.005
+w = which(sort(adj.p.values) < q * (1:L)/L)
+candidates.bh = order(adj.p.values)[w]
+obj.lfmm_dissol_max2 = lfmm("stru_new.lfmm", "dissol_max.env", K = 1, rep = 3, project="new")
+obj.lfmm_dissol_min = lfmm("stru_new.lfmm", "dissol_min.env", K = 1, rep = 3, project="new")
+obj.lfmm_temp_max = lfmm("stru_new.lfmm", "temp_max.env", K = 1, rep = 3, project="new")
+obj.lfmm_temp_min = lfmm("stru_new.lfmm", "temp_min.env", K = 1, rep = 3, project="new")
+obj.lfmm_sal_max = lfmm("stru_new.lfmm", "sal_max.env", K = 1, rep = 3, project="new")
+obj.lfmm_sal_min = lfmm("stru_new.lfmm", "sal_min.env", K = 1, rep = 3, project="new")
+obj.lfmm_cod = lfmm("stru_new.lfmm", "cod.env", K = 1, rep = 3, project="new")
+obj.lfmm_hake = lfmm("stru_new.lfmm", "hake.env", K = 1, rep = 3, project="new")
+obj.lfmm_phos_max = lfmm("stru_new.lfmm", "phos_max.env", K = 1, rep = 3, project="new")
+obj.lfmm_phos_min = lfmm("stru_new.lfmm", "phos_min.env", K = 1, rep = 3, project="new")
+obj.lfmm_nit_max = lfmm("stru_new.lfmm", "nit_max.env", K = 1, rep = 3, project="new")
+obj.lfmm_nit_min = lfmm("stru_new.lfmm", "nit_min.env", K = 1, rep = 3, project="new")
+obj.lfmm_disch = lfmm("stru_new.lfmm", "disch.env", K = 1, rep = 3, project="new")
+obj.lfmm_lat = lfmm("stru_new.lfmm", "lat.env", K = 1, rep = 3, project="new")
+obj.lfmm_long = lfmm("stru_new.lfmm", "long.env", K = 1, rep = 3, project="new")
+obj.lfmm_asd = lfmm("stru_new.lfmm", "asd.env", K = 1, rep = 3, project="new")
+obj.lfmm_bsk = lfmm("stru_new.lfmm", "bsk.env", K = 1, rep = 3, project="new")
+obj.lfmm_shd = lfmm("stru_new.lfmm", "shd.env", K = 1, rep = 3, project="new")
+obj.lfmm_sal = lfmm("stru_new.lfmm", "sal.env", K = 1, rep = 3, project="new")
+obj.lfmm_mlr = lfmm("stru_new.lfmm", "mlr.env", K = 1, rep = 3, project="new")
+obj.lfmm_mac = lfmm("stru_new.lfmm", "mac.env", K = 1, rep = 3, project="new")
+obj.lfmm_tsd = lfmm("stru_new.lfmm", "tsd.env", K = 1, rep = 3, project="new")
+####dissolv max
+zs_dmax = z.scores(obj.lfmm_dissol_max2, K = 1)
+median_dmax = apply(zs_dmax, MARGIN = 1, median)
+lambda_dmax = median(median_dmax^2)/qchisq(0.5, df = 1)
+lambda_dmax##check if close to 1
+adj.p.values_dmax = pchisq(median_dmax^2/lambda_dmax, df = 1, lower = FALSE)
+hist(adj.p.values_dmax, col = "red")
+L = 30910
+q = 0.1####still conservative
+w = which(sort(adj.p.values_dmax) < q * (1:L)/L)
+candidates_dmax4 = order(adj.p.values_dmax)[w]
+write.csv(candidates_dmax4, file = "candidates_dmax3")
+####dissolv min
+zs_dmin = z.scores(obj.lfmm_dissol_min, K = 1)
+median_dmin = apply(zs_dmin, MARGIN = 1, median)
+lambda_dmin = median(median_dmin^2)/qchisq(0.5, df = 1)
+lambda_dmin##check if close to 1
+adj.p.values_dmin = pchisq(median_dmin^2/lambda_dmin, df = 1, lower = FALSE)
+hist(adj.p.values_dmin, col = "red")
+L = 30910
+q = 0.0001
+w = which(sort(adj.p.values_dmin) < q * (1:L)/L)
+candidates_dmin = order(adj.p.values_dmin)[w]
+write.csv(candidates_dmin, file = "candidates_dmin")
+####temp_max
+zs_tmax = z.scores(obj.lfmm_temp_max, K = 1)
+median_tmax = apply(zs_tmax, MARGIN = 1, median)
+lambda_tmax = median(median_tmax^2)/qchisq(0.5, df = 1)
+lambda_tmax##check if close to 1
+adj.p.values_tmax = pchisq(median_tmax^2/lambda_tmax, df = 1, lower = FALSE)
+hist(adj.p.values_tmax, col = "red")
+L = 30910
+q = 0.0001
+w = which(sort(adj.p.values_tmax) < q * (1:L)/L)
+candidates_tmax = order(adj.p.values_tmax)[w]
+write.csv(candidates_tmax, file = "temp_max")
+####temp min
+zs_tmin = z.scores(obj.lfmm_temp_min, K = 1)
+median_tmin = apply(zs_tmin, MARGIN = 1, median)
+lambda_tmin = median(median_tmin^2)/qchisq(0.5, df = 1)
+lambda_tmin##check if close to 1
+adj.p.values_tmin = pchisq(median_tmin^2/lambda_tmin, df = 1, lower = FALSE)
+hist(adj.p.values_tmin, col = "red")
+L = 30910
+q = 0.0001
+w = which(sort(adj.p.values_tmin) < q * (1:L)/L)
+candidates_tmin = order(adj.p.values_tmin)[w]
+write.csv(candidates_tmin, file = "candidates_tmin")
+####sal_max
+zs_smax = z.scores(obj.lfmm_sal_max, K = 1)
+median_smax = apply(zs_smax, MARGIN = 1, median)
+lambda_smax = median(median_smax^2)/qchisq(0.5, df = 1)
+lambda_smax##check if close to 1
+adj.p.values_smax = pchisq(median_smax^2/lambda_smax, df = 1, lower = FALSE)
+hist(adj.p.values_smax, col = "red")
+L = 30910
+w = which(sort(adj.p.values_smax) < q * (1:L)/L)
+q = 0.0001
+candidates_smax = order(adj.p.values_smax)[w]
+write.csv(candidates_smax, file = "candidates_smax")
+####sal min
+zs_smin = z.scores(obj.lfmm_sal_min, K = 1)
+median_smin = apply(zs_smin, MARGIN = 1, median)
+lambda_smin = median(median_smin^2)/qchisq(0.5, df = 1)
+lambda_smin##check if close to 1
+adj.p.values_smin = pchisq(median_smin^2/lambda_smin, df = 1, lower = FALSE)
+hist(adj.p.values_smin, col = "red")
+L = 30910
+q = 0.0001
+w = which(sort(adj.p.values_smin) < q * (1:L)/L)
+candidates_smin = order(adj.p.values_smin)[w]
+write.csv(candidates_smin, file = "candidates_smin")
+###phos_max###
+zs_pmax = z.scores(obj.lfmm_phos_max, K = 1)
+median_pmax = apply(zs_pmax, MARGIN = 1, median)
+lambda_pmax = median(median_pmax^2)/qchisq(0.5, df = 1)
+lambda_pmax##check if close to 1
+adj.p.values_pmax = pchisq(median_pmax^2/lambda_pmax, df = 1, lower = FALSE)
+hist(adj.p.values_pmax, col = "red")
+L = 30910
+q = 0.0001
+w = which(sort(adj.p.values_pmax) < q * (1:L)/L)
+candidates_pmax = order(adj.p.values_pmax)[w]
+write.csv(candidates_pmax, file = "candidates_pmax")
+####phos_min#####
+zs_pmin = z.scores(obj.lfmm_phos_min, K = 1)
+median_pmin = apply(zs_pmin, MARGIN = 1, median)
+lambda_pmin = median(median_pmin^2)/qchisq(0.5, df = 1)
+lambda_pmin##check if close to 1
+adj.p.values_pmin = pchisq(median_pmin^2/lambda_pmin, df = 1, lower = FALSE)
+hist(adj.p.values_pmin, col = "red")
+L = 30910
+q = 0.0001
+w = which(sort(adj.p.values_pmin) < q * (1:L)/L)
+candidates_pmin = order(adj.p.values_pmin)[w]
+write.csv(candidates_pmin, file = "candidates_pmin")
+#####nit_max####
+zs_nmax = z.scores(obj.lfmm_nit_max, K = 1)
+median_nmax = apply(zs_nmax, MARGIN = 1, median)
+lambda_nmax = median(median_nmax^2)/qchisq(0.5, df = 1)
+lambda_nmax##check if close to 1
+adj.p.values_nmax = pchisq(median_nmax^2/lambda_nmax, df = 1, lower = FALSE)
+hist(adj.p.values_nmax, col = "red")
+L = 30910
+q = 0.0001
+w = which(sort(adj.p.values_nmax) < q * (1:L)/L)
+candidates_nmax = order(adj.p.values_nmax)[w]
+write.csv(candidates_nmax, file = "candidates_nmax")
+####nit_min####
+zs_nmin = z.scores(obj.lfmm_nit_min, K = 1)
+median_nmin = apply(zs_nmin, MARGIN = 1, median)
+lambda_nmin = median(median_nmin^2)/qchisq(0.5, df = 1)
+lambda_nmin##check if close to 1
+adj.p.values_nmin = pchisq(median_nmin^2/lambda_nmin, df = 1, lower = FALSE)
+hist(adj.p.values_nmin, col = "red")
+L = 30910
+q = 0.0001
+w = which(sort(adj.p.values_nmin) < q * (1:L)/L)
+candidates_nmin = order(adj.p.values_nmin)[w]
+write.csv(candidates_nmin, file = "candidates_nmin")
+####discharge###
+zs_disch = z.scores(obj.lfmm_disch, K = 1)
+median_disch = apply(zs_disch, MARGIN = 1, median)
+lambda_disch = median(median_disch^2)/qchisq(0.5, df = 1)
+lambda_disch##check if close to 1
+adj.p.values_disch = pchisq(median_disch^2/lambda_disch, df = 1, lower = FALSE)
+hist(adj.p.values_disch, col = "red")
+L = 30910
+q = 0.1
+w = which(sort(adj.p.values_disch) < q * (1:L)/L)
+candidates_disch = order(adj.p.values_disch)[w]
+write.csv(candidates_disch, file = "candidates_disch")
+#####lat######
+zs_lat = z.scores(obj.lfmm_lat, K = 1)
+median_lat = apply(zs_lat, MARGIN = 1, median)
+lambda_lat = median(median_lat^2)/qchisq(0.5, df = 1)
+lambda_lat##check if close to 1
+adj.p.values_lat = pchisq(median_lat^2/lambda_lat, df = 1, lower = FALSE)
+hist(adj.p.values_lat, col = "red")
+L = 30910
+q = 0.0001
+w = which(sort(adj.p.values_lat) < q * (1:L)/L)
+candidates_lat = order(adj.p.values_lat)[w]
+write.csv(candidates_lat, file = "candidates_lat")
+#####long######
+zs_long = z.scores(obj.lfmm_long, K = 1)
+median_long = apply(zs_long, MARGIN = 1, median)
+lambda_long = median(median_long^2)/qchisq(0.5, df = 1)
+lambda_long##check if close to 1
+adj.p.values_long = pchisq(median_long^2/lambda_long, df = 1, lower = FALSE)
+hist(adj.p.values_long, col = "red")
+L = 30910
+q = 0.0001
+w = which(sort(adj.p.values_long) < q * (1:L)/L)
+candidates_long = order(adj.p.values_long)[w]
+write.csv(candidates_long, file = "candidates_long")
+####cod####
+zs_cod = z.scores(obj.lfmm_cod, K = 1)
+median_cod = apply(zs_cod, MARGIN = 1, median)
+lambda_cod = median(median_cod^2)/qchisq(0.5, df = 1)
+lambda_cod##check if close to 1
+adj.p.values_cod = pchisq(median_cod^2/lambda_cod, df = 1, lower = FALSE)
+hist(adj.p.values_cod, col = "red")
+L = 30910
+q = 0.1
+w = which(sort(adj.p.values_cod) < q * (1:L)/L)
+candidates_cod = order(adj.p.values_cod)[w]
+write.csv(candidates_cod, file = "candidates_cod")
+####hake####
+zs_hake = z.scores(obj.lfmm_hake, K = 1)
+median_hake = apply(zs_hake, MARGIN = 1, median)
+lambda_hake = median(median_hake^2)/qchisq(0.5, df = 1)
+lambda_hake##check if close to 1
+adj.p.values_hake = pchisq(median_hake^2/lambda_hake, df = 1, lower = FALSE)
+hist(adj.p.values_hake, col = "red")
+L = 30910
+q = 0.1
+w = which(sort(adj.p.values_hake) < q * (1:L)/L)
+candidates_hake = order(adj.p.values_hake)[w]
+write.csv(candidates_hake, file = "candidates_hake")
+####asd######
+zs_asd = z.scores(obj.lfmm_asd, K = 1)
+median_asd = apply(zs_asd, MARGIN = 1, median)
+lambda_asd = median(median_asd^2)/qchisq(0.5, df = 1)
+lambda_asd##check if close to 1
+adj.p.values_asd = pchisq(median_asd^2/lambda_asd, df = 1, lower = FALSE)
+hist(adj.p.values_asd, col = "red")
+L = 30910
+q = 0.0001
+w = which(sort(adj.p.values_asd) < q * (1:L)/L)
+candidates_asd = order(adj.p.values_asd)[w]
+write.csv(candidates_asd, file = "candidates_asd")
+###bsk#####
+zs_bsk = z.scores(obj.lfmm_bsk, K = 1)
+median_bsk = apply(zs_bsk, MARGIN = 1, median)
+lambda_bsk = median(median_bsk^2)/qchisq(0.5, df = 1)
+lambda_bsk##check if close to 1
+adj.p.values_bsk = pchisq(median_bsk^2/lambda_bsk, df = 1, lower = FALSE)
+hist(adj.p.values_bsk, col = "red")
+L = 30910
+q = 0.0001
+w = which(sort(adj.p.values_bsk) < q * (1:L)/L)
+candidates_bsk = order(adj.p.values_bsk)[w]
+write.csv(candidates_bsk, file = "candidates_bsk")
+####shd####
+zs_shd = z.scores(obj.lfmm_shd, K = 1)
+median_shd = apply(zs_shd, MARGIN = 1, median)
+lambda_shd = median(median_shd^2)/qchisq(0.5, df = 1)
+lambda_shd##check if close to 1
+adj.p.values_shd = pchisq(median_shd^2/lambda_shd, df = 1, lower = FALSE)
+hist(adj.p.values_shd, col = "red")
+L = 30910
+q = 0.0001
+w = which(sort(adj.p.values_shd) < q * (1:L)/L)
+candidates_shd = order(adj.p.values_shd)[w]
+write.csv(candidates_shd, file = "candidates_shd")
+#####sal####
+zs_sal = z.scores(obj.lfmm_sal, K = 1)
+median_sal = apply(zs_sal, MARGIN = 1, median)
+lambda_sal = median(median_sal^2)/qchisq(0.5, df = 1)
+lambda_sal##check if close to 1
+adj.p.values_sal = pchisq(median_sal^2/lambda_sal, df = 1, lower = FALSE)
+hist(adj.p.values_sal, col = "red")
+L = 30910
+q = 0.0001
+w = which(sort(adj.p.values_sal) < q * (1:L)/L)
+candidates_sal = order(adj.p.values_sal)[w]
+write.csv(candidates_sal, file = "candidates_sal")
+#####mlr######
+zs_mlr = z.scores(obj.lfmm_mlr, K = 1)
+median_mlr = apply(zs_mlr, MARGIN = 1, median)
+lambda_mlr = median(median_mlr^2)/qchisq(0.5, df = 1)
+lambda_mlr##check if close to 1
+adj.p.values_mlr = pchisq(median_mlr^2/lambda_mlr, df = 1, lower = FALSE)
+hist(adj.p.values_mlr, col = "red")
+L = 30910
+q = 0.0001
+w = which(sort(adj.p.values_mlr) < q * (1:L)/L)
+candidates_mlr = order(adj.p.values_mlr)[w]
+write.csv(candidates_mlr, file = "candidates_mlr")
+####mac#####
+zs_mac = z.scores(obj.lfmm_mac, K = 1)
+median_mac = apply(zs_mac, MARGIN = 1, median)
+lambda_mac = median(median_mac^2)/qchisq(0.5, df = 1)
+lambda_mac##check if close to 1
+adj.p.values_mac = pchisq(median_mac^2/lambda_mac, df = 1, lower = FALSE)
+hist(adj.p.values_mac, col = "red")
+L = 30910
+q = 0.0001
+w = which(sort(adj.p.values_mac) < q * (1:L)/L)
+candidates_mac = order(adj.p.values_mac)[w]
+write.csv(candidates_mac, file = "candidates_mac")
+####tsd#####
+zs_tsd = z.scores(obj.lfmm_tsd, K = 1)
+median_tsd = apply(zs_tsd, MARGIN = 1, median)
+lambda_tsd = median(median_tsd^2)/qchisq(0.5, df = 1)
+lambda_tsd##check if close to 1
+adj.p.values_tsd = pchisq(median_tsd^2/lambda_tsd, df = 1, lower = FALSE)
+hist(adj.p.values_tsd, col = "red")
+L = 30910
+q = 0.0001
+w = which(sort(adj.p.values_tsd) < q * (1:L)/L)
+candidates_tsd = order(adj.p.values_tsd)[w]
+write.csv(candidates_tsd, file = "candidates_tsd")
+
+###EXTRACT QVALUES##
+####dissolv max
+zs_dmax = z.scores(obj.lfmm_dissol_max, K = 1)
+median_dmax = apply(zs_dmax, MARGIN = 1, median)
+lambda_dmax = median(median_dmax^2)/qchisq(0.5, df = 1)
+lambda_dmax##check if close to 1
+adj.p.values_dmax = pchisq(median_dmax^2/lambda_dmax, df = 1, lower = FALSE)
+hist(adj.p.values_dmax, col = "red")
+L = 30910
+q = 0.01
+w = which(sort(adj.p.values_dmax) < q * (1:L)/L)
+candidates_dmax = order(adj.p.values_dmax)[w]
+write.csv(candidates_dmax, file = "candidates_dmax")
+####dissolv min
+zs_dmin = z.scores(obj.lfmm_dissol_min, K = 1)
+median_dmin = apply(zs_dmin, MARGIN = 1, median)
+lambda_dmin = median(median_dmin^2)/qchisq(0.5, df = 1)
+lambda_dmin##check if close to 1
+adj.p.values_dmin = pchisq(median_dmin^2/lambda_dmin, df = 1, lower = FALSE)
+hist(adj.p.values_dmin, col = "red")
+L = 30910
+q = 0.01
+w = which(sort(adj.p.values_dmin) < q * (1:L)/L)
+candidates_dmin = order(adj.p.values_dmin)[w]
+write.csv(candidates_dmin, file = "candidates_dmin")
+####temp_max
+zs_tmax = z.scores(obj.lfmm_temp_max, K = 1)
+median_tmax = apply(zs_tmax, MARGIN = 1, median)
+lambda_tmax = median(median_tmax^2)/qchisq(0.5, df = 1)
+lambda_tmax##check if close to 1
+adj.p.values_tmax = pchisq(median_tmax^2/lambda_tmax, df = 1, lower = FALSE)
+hist(adj.p.values_tmax, col = "red")
+L = 30910
+q = 0.01
+w = which(sort(adj.p.values_tmax) < q * (1:L)/L)
+candidates_tmax = order(adj.p.values_tmax)[w]
+write.csv(candidates_tmax, file = "temp_max")
+####temp min
+zs_tmin = z.scores(obj.lfmm_temp_min, K = 1)
+median_tmin = apply(zs_tmin, MARGIN = 1, median)
+lambda_tmin = median(median_tmin^2)/qchisq(0.5, df = 1)
+lambda_tmin##check if close to 1
+adj.p.values_tmin = pchisq(median_tmin^2/lambda_tmin, df = 1, lower = FALSE)
+hist(adj.p.values_tmin, col = "red")
+L = 30910
+q = 0.01
+w = which(sort(adj.p.values_tmin) < q * (1:L)/L)
+candidates_tmin = order(adj.p.values_tmin)[w]
+write.csv(candidates_tmin, file = "candidates_tmin")
+####sal_max
+zs_smax = z.scores(obj.lfmm_sal_max, K = 1)
+median_smax = apply(zs_smax, MARGIN = 1, median)
+lambda_smax = median(median_smax^2)/qchisq(0.5, df = 1)
+lambda_smax##check if close to 1
+adj.p.values_smax = pchisq(median_smax^2/lambda_smax, df = 1, lower = FALSE)
+hist(adj.p.values_smax, col = "red")
+L = 30910
+w = which(sort(adj.p.values_smax) < q * (1:L)/L)
+q = 0.05
+candidates_smax = order(adj.p.values_smax)[w]
+write.csv(candidates_smax, file = "candidates_smax")
+####sal min
+zs_smin = z.scores(obj.lfmm_sal_min, K = 1)
+median_smin = apply(zs_smin, MARGIN = 1, median)
+lambda_smin = median(median_smin^2)/qchisq(0.5, df = 1)
+lambda_smin##check if close to 1
+adj.p.values_smin = pchisq(median_smin^2/lambda_smin, df = 1, lower = FALSE)
+hist(adj.p.values_smin, col = "red")
+L = 30910
+q = 0.05
+w = which(sort(adj.p.values_smin) < q * (1:L)/L)
+candidates_smin = order(adj.p.values_smin)[w]
+write.csv(candidates_smin, file = "candidates_smin")
+###phos_max###
+zs_pmax = z.scores(obj.lfmm_phos_max, K = 1)
+median_pmax = apply(zs_pmax, MARGIN = 1, median)
+lambda_pmax = median(median_pmax^2)/qchisq(0.5, df = 1)
+lambda_pmax##check if close to 1
+adj.p.values_pmax = pchisq(median_pmax^2/lambda_pmax, df = 1, lower = FALSE)
+hist(adj.p.values_pmax, col = "red")
+L = 30910
+q = 0.05
+w = which(sort(adj.p.values_pmax) < q * (1:L)/L)
+candidates_pmax = order(adj.p.values_pmax)[w]
+write.csv(candidates_pmax, file = "candidates_pmax")
+####phos_min#####
+zs_pmin = z.scores(obj.lfmm_phos_min, K = 1)
+median_pmin = apply(zs_pmin, MARGIN = 1, median)
+lambda_pmin = median(median_pmin^2)/qchisq(0.5, df = 1)
+lambda_pmin##check if close to 1
+adj.p.values_pmin = pchisq(median_pmin^2/lambda_pmin, df = 1, lower = FALSE)
+hist(adj.p.values_pmin, col = "red")
+L = 30910
+q = 0.05
+w = which(sort(adj.p.values_pmin) < q * (1:L)/L)
+candidates_pmin = order(adj.p.values_pmin)[w]
+write.csv(candidates_pmin, file = "candidates_pmin")
+#####nit_max####
+zs_nmax = z.scores(obj.lfmm_nit_max, K = 1)
+median_nmax = apply(zs_nmax, MARGIN = 1, median)
+lambda_nmax = median(median_nmax^2)/qchisq(0.5, df = 1)
+lambda_nmax##check if close to 1
+adj.p.values_nmax = pchisq(median_nmax^2/lambda_nmax, df = 1, lower = FALSE)
+hist(adj.p.values_nmax, col = "red")
+L = 30910
+q = 0.05
+w = which(sort(adj.p.values_nmax) < q * (1:L)/L)
+candidates_nmax = order(adj.p.values_nmax)[w]
+write.csv(candidates_nmax, file = "candidates_nmax")
+####nit_min####
+zs_nmin = z.scores(obj.lfmm_nit_min, K = 1)
+median_nmin = apply(zs_nmin, MARGIN = 1, median)
+lambda_nmin = median(median_nmin^2)/qchisq(0.5, df = 1)
+lambda_nmin##check if close to 1
+adj.p.values_nmin = pchisq(median_nmin^2/lambda_nmin, df = 1, lower = FALSE)
+hist(adj.p.values_nmin, col = "red")
+L = 30910
+q = 0.05
+w = which(sort(adj.p.values_nmin) < q * (1:L)/L)
+candidates_nmin = order(adj.p.values_nmin)[w]
+write.csv(candidates_nmin, file = "candidates_nmin")
+####discharge###
+zs_disch = z.scores(obj.lfmm_disch, K = 1)
+median_disch = apply(zs_disch, MARGIN = 1, median)
+lambda_disch = median(median_disch^2)/qchisq(0.5, df = 1)
+lambda_disch##check if close to 1
+adj.p.values_disch = pchisq(median_disch^2/lambda_disch, df = 1, lower = FALSE)
+hist(adj.p.values_disch, col = "red")
+L = 30910
+q = 0.05
+w = which(sort(adj.p.values_disch) < q * (1:L)/L)
+candidates_disch = order(adj.p.values_disch)[w]
+write.csv(candidates_disch, file = "candidates_disch")
+#####lat######
+zs_lat = z.scores(obj.lfmm_lat, K = 1)
+median_lat = apply(zs_lat, MARGIN = 1, median)
+lambda_lat = median(median_lat^2)/qchisq(0.5, df = 1)
+lambda_lat##check if close to 1
+adj.p.values_lat = pchisq(median_lat^2/lambda_lat, df = 1, lower = FALSE)
+hist(adj.p.values_lat, col = "red")
+L = 30910
+q = 0.05
+w = which(sort(adj.p.values_lat) < q * (1:L)/L)
+candidates_lat = order(adj.p.values_lat)[w]
+write.csv(candidates_lat, file = "candidates_lat")
+#####long######
+zs_long = z.scores(obj.lfmm_long, K = 1)
+median_long = apply(zs_long, MARGIN = 1, median)
+lambda_long = median(median_long^2)/qchisq(0.5, df = 1)
+lambda_long##check if close to 1
+adj.p.values_long = pchisq(median_long^2/lambda_long, df = 1, lower = FALSE)
+hist(adj.p.values_long, col = "red")
+L = 30910
+q = 0.05
+w = which(sort(adj.p.values_long) < q * (1:L)/L)
+candidates_long = order(adj.p.values_long)[w]
+write.csv(candidates_long, file = "candidates_long")
+####cod####
+zs_cod = z.scores(obj.lfmm_cod, K = 1)
+median_cod = apply(zs_cod, MARGIN = 1, median)
+lambda_cod = median(median_cod^2)/qchisq(0.5, df = 1)
+lambda_cod##check if close to 1
+adj.p.values_cod = pchisq(median_cod^2/lambda_cod, df = 1, lower = FALSE)
+hist(adj.p.values_cod, col = "red")
+L = 30910
+q = 0.05
+w = which(sort(adj.p.values_cod) < q * (1:L)/L)
+candidates_cod = order(adj.p.values_cod)[w]
+write.csv(candidates_cod, file = "candidates_cod")
+####hake####
+zs_hake = z.scores(obj.lfmm_hake, K = 1)
+median_hake = apply(zs_hake, MARGIN = 1, median)
+lambda_hake = median(median_hake^2)/qchisq(0.5, df = 1)
+lambda_hake##check if close to 1
+adj.p.values_hake = pchisq(median_hake^2/lambda_hake, df = 1, lower = FALSE)
+hist(adj.p.values_hake, col = "red")
+L = 30910
+q = 0.05
+w = which(sort(adj.p.values_hake) < q * (1:L)/L)
+candidates_hake = order(adj.p.values_hake)[w]
+write.csv(candidates_hake, file = "candidates_hake")
+####asd######
+zs_asd = z.scores(obj.lfmm_asd, K = 1)
+median_asd = apply(zs_asd, MARGIN = 1, median)
+lambda_asd = median(median_asd^2)/qchisq(0.5, df = 1)
+lambda_asd##check if close to 1
+adj.p.values_asd = pchisq(median_asd^2/lambda_asd, df = 1, lower = FALSE)
+hist(adj.p.values_asd, col = "red")
+L = 30910
+q = 0.05
+w = which(sort(adj.p.values_asd) < q * (1:L)/L)
+candidates_asd = order(adj.p.values_asd)[w]
+write.csv(candidates_asd, file = "candidates_asd")
+###bsk#####
+zs_bsk = z.scores(obj.lfmm_bsk, K = 1)
+median_bsk = apply(zs_bsk, MARGIN = 1, median)
+lambda_bsk = median(median_bsk^2)/qchisq(0.5, df = 1)
+lambda_bsk##check if close to 1
+adj.p.values_bsk = pchisq(median_bsk^2/lambda_bsk, df = 1, lower = FALSE)
+hist(adj.p.values_bsk, col = "red")
+L = 30910
+q = 0.05
+w = which(sort(adj.p.values_bsk) < q * (1:L)/L)
+candidates_bsk = order(adj.p.values_bsk)[w]
+write.csv(candidates_bsk, file = "candidates_bsk")
+####shd####
+zs_shd = z.scores(obj.lfmm_shd, K = 1)
+median_shd = apply(zs_shd, MARGIN = 1, median)
+lambda_shd = median(median_shd^2)/qchisq(0.5, df = 1)
+lambda_shd##check if close to 1
+adj.p.values_shd = pchisq(median_shd^2/lambda_shd, df = 1, lower = FALSE)
+hist(adj.p.values_shd, col = "red")
+L = 30910
+q = 0.05
+w = which(sort(adj.p.values_shd) < q * (1:L)/L)
+candidates_shd = order(adj.p.values_shd)[w]
+write.csv(candidates_shd, file = "candidates_shd")
+#####sal####
+zs_sal = z.scores(obj.lfmm_sal, K = 1)
+median_sal = apply(zs_sal, MARGIN = 1, median)
+lambda_sal = median(median_sal^2)/qchisq(0.5, df = 1)
+lambda_sal##check if close to 1
+adj.p.values_sal = pchisq(median_sal^2/lambda_sal, df = 1, lower = FALSE)
+hist(adj.p.values_sal, col = "red")
+L = 30910
+q = 0.05
+w = which(sort(adj.p.values_sal) < q * (1:L)/L)
+candidates_sal = order(adj.p.values_sal)[w]
+write.csv(candidates_sal, file = "candidates_sal")
+#####mlr######
+zs_mlr = z.scores(obj.lfmm_mlr, K = 1)
+median_mlr = apply(zs_mlr, MARGIN = 1, median)
+lambda_mlr = median(median_mlr^2)/qchisq(0.5, df = 1)
+lambda_mlr##check if close to 1
+adj.p.values_mlr = pchisq(median_mlr^2/lambda_mlr, df = 1, lower = FALSE)
+hist(adj.p.values_mlr, col = "red")
+L = 30910
+q = 0.05
+w = which(sort(adj.p.values_mlr) < q * (1:L)/L)
+candidates_mlr = order(adj.p.values_mlr)[w]
+write.csv(candidates_mlr, file = "candidates_mlr")
+####mac#####
+zs_mac = z.scores(obj.lfmm_mac, K = 1)
+median_mac = apply(zs_mac, MARGIN = 1, median)
+lambda_mac = median(median_mac^2)/qchisq(0.5, df = 1)
+lambda_mac##check if close to 1
+adj.p.values_mac = pchisq(median_mac^2/lambda_mac, df = 1, lower = FALSE)
+hist(adj.p.values_mac, col = "red")
+L = 30910
+q = 0.05
+w = which(sort(adj.p.values_mac) < q * (1:L)/L)
+candidates_mac = order(adj.p.values_mac)[w]
+write.csv(candidates_mac, file = "candidates_mac")
+####tsd#####
+zs_tsd = z.scores(obj.lfmm_tsd, K = 1)
+median_tsd = apply(zs_tsd, MARGIN = 1, median)
+lambda_tsd = median(median_tsd^2)/qchisq(0.5, df = 1)
+lambda_tsd##check if close to 1
+adj.p.values_tsd = pchisq(median_tsd^2/lambda_tsd, df = 1, lower = FALSE)
+hist(adj.p.values_tsd, col = "red")
+L = 30910
+q = 0.05
+w = which(sort(adj.p.values_tsd) < q * (1:L)/L)
+candidates_tsd = order(adj.p.values_tsd)[w]
+write.csv(candidates_tsd, file = "candidates_tsd")
+
+######PCADAPT######
+library(pcadapt)
+library(ggplot2)
+library(RColorBrewer)
+library(qvalue)
+#imputed data
+pcadapt_tst<- read.pcadapt("stru_new_lfmm_imputed.lfmm",type="lfmm")
+plot(project_imput.snmf, cex = 1.2, col = "red", pch = 19)
+project_imput.snmf<-snmf("stru_new.lfmm_imputed.lfmm", K = c(1:8),  project = "new",
+repetitions = 10, CPU = 1,
+alpha = 10, tolerance = 0.00001, entropy = TRUE, percentage = 0.05,
+I = 3000, iterations = 200, ploidy = 2, seed = -1)
+project_imput.snmf<-snmf("stru_new_lfmm_imputed.lfmm", K = c(1:8),  project = "new",
+repetitions = 10, CPU = 1,
+alpha = 10, tolerance = 0.00001, entropy = TRUE, percentage = 0.05,
+I = 3000, iterations = 200, ploidy = 2, seed = -1)
+plot(project_imput.snmf, cex = 1.2, col = "red", pch = 19)
+best1<-which.min(cross.entropy(project_imput.snmf, K = 6))
+best1
+barplot(t(Q(project_imput.snmf, K = 3, run = 2)), col = c("orange","green","blue"),border = NA, space = 0, xlab = "Individuals", ylab = "Admixture coefficients")
+barplot(t(Q(project_imput.snmf, K = 6, run = 3)), col = c("orange","green","blue"),border = NA, space = 0, xlab = "Individuals", ylab = "Admixture coefficients")
+project_imput.snmf<-snmf("stru_new_lfmm_imputed.lfmm", K = c(1:8),  project = "new",
+repetitions = 10, CPU = 1,
+alpha = 10, tolerance = 0.00001, entropy = TRUE, percentage = 0.05,
+I = 3000, iterations = 200, ploidy = 2, seed = -1)
+plot(project_imput.snmf, cex = 1.2, col = "red", pch = 19)
+best1<-which.min(cross.entropy(project_imput.snmf, K = 2))
+best1
+barplot(t(Q(project_imput.snmf, K = 2, run = 9)), col = c("orange","green","blue"),border = NA, space = 0, xlab = "Individuals", ylab = "Admixture coefficients")
+pcadapt_tst<- read.pcadapt("E:/NTFS/MC/1 - Genomics paper/Sequencing/Results/ref_PE/aligned/results/LEA/stru_new_lfmm_imputed.lfmm",type="lfmm")
+k<-pcadapt(pcadapt_tst,K=20)
+plot(k,option="screeplot")
+popNames_pmar2 <- c(replicate(34,"Frome-UK"), replicate(20,"Mondego-PT"),replicate(20,"Tagus-PT"),replicate(27,"Ouse-UK"),replicate(22,"Ulla-SP"),replicate(22,"Rolfsan-SWE"),replicate(18, "Gironde-FRA"),replicate (23,"Severn-UK"))
+colour2<-c("mediumorchid2","turquoise1","steelblue3","coral4","dodgerblue4","red2","mediumblue","darkorange1")
+plot(k,option="scores",pop=popNames_pmar2)
+summary(k)
+plot(k,option="manhattan")
+plot(k,option="qqplot")
+hist(qval, xlab = "q-values", main = NULL, breaks = 50, col = "steelblue3", xlim = c(0.0,1))
+
+bonferr_adjust <- p.adjust(k$pvalues, method="bonferroni")
+alpha <- 0.001
+outliers <- which(bonferr_adjust < alpha)
+length(outliers)
+snp_pc <- get.pc(k, outliers)
+write.csv(snp_pc,file="candidates_pcadapt")
+
+
